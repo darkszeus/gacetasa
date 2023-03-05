@@ -1,0 +1,717 @@
+function validateEmail(email) {
+	const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+	return re.test(email);
+}
+function validateRut(rut) {
+    // Despejar Puntos
+	let respRut = {"valido": false, "mensaje": ""};
+    var valor = rut.replace('.','');
+    // Despejar Guión
+    valor = valor.replace('-','');
+    // Aislar Cuerpo y Dígito Verificador
+    cuerpo = valor.slice(0,-1);
+    dv = valor.slice(-1).toUpperCase();
+    // Formatear RUN
+    let rutValor = cuerpo + '-'+ dv;
+    // Si no cumple con el mínimo ej. (n.nnn.nnn)
+    if(cuerpo.length < 7) { respRut.mensaje = "RUT Incompleto"; return respRut;}
+    // Calcular Dígito Verificador
+    suma = 0;
+    multiplo = 2;
+    // Para cada dígito del Cuerpo
+    for(i=1;i<=cuerpo.length;i++) {
+        // Obtener su Producto con el Múltiplo Correspondiente
+        index = multiplo * valor.charAt(cuerpo.length - i);
+        // Sumar al Contador General
+        suma = suma + index;
+        // Consolidar Múltiplo dentro del rango [2,7]
+        if(multiplo < 7) { multiplo = multiplo + 1; } else { multiplo = 2; }
+    }
+    // Calcular Dígito Verificador en base al Módulo 11
+    dvEsperado = 11 - (suma % 11);
+    // Casos Especiales (0 y K)
+    dv = (dv == 'K')?10:dv;
+    dv = (dv == 0)?11:dv;
+    // Validar que el Cuerpo coincide con su Dígito Verificador
+    if(dvEsperado != dv) { respRut.mensaje = "RUT no válido"; return respRut; }
+	else {
+		respRut.valido = true;
+	}
+	return respRut;
+    // Si todo sale bien, eliminar errores (decretar que es válido)
+}
+function isValidPhoneNumber(number) {
+	let respPhoneNumber = {"valido": false, "mensaje": "" };
+	// minimo 11 números en formato internacional
+	number = number.trim();
+	if (number === "") {
+		respPhoneNumber.valido = true;
+	}
+	else {
+		let regExp = /^(\+{1,})(\d){11,}$/g;
+		respPhoneNumber.valido = regExp.test(number);	
+	}
+	if (respPhoneNumber.valido === false) {
+		respPhoneNumber.mensaje = "Ej. de Número válido +56123456789";
+	}
+	return respPhoneNumber;
+}
+function loadScript(url) {
+    return new Promise(function(resolve, reject) {
+        const script = document.createElement('script');
+        script.src = url;
+
+        script.addEventListener('load', function() {
+            // The script is loaded completely
+            resolve(true);
+        });
+
+        document.head.appendChild(script);
+    });
+};
+var locationHost = location.host;
+var nombreAvatar = "María";
+var urlBaseBrowser = window.location.protocol + "//" + locationHost;
+var AMBIENTE = "TEST";
+var urlBase = "https://demos.sixbell.com:8444";; //window.location.protocol + "//" + locationHost;
+
+
+window.onload = async function(){
+	let localHostArray = ["localhost", "192.168"];
+	let testHostArray = ["demos.sixbell.com", "portal-qa.tarjetahites.com",
+			"development-na01-hites.demandware.net","bm-development.hites.com"];
+	let prodHostArray = ["tarjetahites.com", "hites.com","staging-na01-hites.demandware.net"];
+	console.log(`urlBaseBrowser:`, urlBaseBrowser);
+	if (localHostArray.some(v => urlBaseBrowser.includes(v))) {
+		AMBIENTE = "LOCAL";
+		urlBase = "http://localhost:8444";
+	}
+	else if (testHostArray.some(v => urlBaseBrowser.includes(v))) {
+		AMBIENTE = "TEST";
+		urlBase = "https://demos.sixbell.com:8444";
+	}
+	else if (prodHostArray.some(v => urlBaseBrowser.includes(v))) {
+		AMBIENTE = "PROD";
+		urlBase = "https://chatbothites.sixbell.com";
+	}	
+	if (AMBIENTE === "LOCAL") {
+		await loadScript("https://code.jquery.com/jquery-3.2.1.js");
+
+	}
+	await loadScript( `${urlBase}/js/jquery-ui.js` );
+	$('head').append(`<link rel="stylesheet" type="text/css" href="${urlBase}/css/estilos-chat-hites-all.css">`);
+	$('head').append(`<link rel="stylesheet" type="text/css" href="${urlBase}/css/linea.css">`);
+	$('body').append(`<div id="chat-widget-hites" class="chat_hites"></div>`);
+	$('body').append(`<div id="div-avatar" class="chat_hites_widget"><img id="avatar-pulse" class="chat_hites_pulse chat_hites_avatar" src="${urlBase}/img/avatar-80x80.png"></img></div>`);
+	$('body').append('<div id="script-div"></div>');
+	$('body').append('<input type="hidden" id="chat_hites_next_action" name="chat_hites_next_action">');
+	//console.log(`HOSTNAME:${location.hostname}`);
+	if (location.hostname.includes("tarjetahites.com")) {
+		//console.log('CAMBIANDO CSS1');
+		$("#div-avatar").css("z-index", "999");
+		//console.log('CAMBIANDO CSS2');
+	}	
+	function createChat(urlBase) {
+		console.log('CREANDO CHAT');
+		$.widget('sixbell.chatwidgetHites', {
+
+			// Default options
+			options: {
+				name: '',
+				avatarImage: `${urlBase}/img/50x50.png`, // Image URL
+				avatarImage2: `${urlBase}/img/50x50.png`,
+				bubbleImage: `${urlBase}/img/50x50.png`
+			},
+			_create: async function () {
+				//console.log('_CREATE');
+				this.urlBase = urlBase;
+				$('#chat-widget-hites').html(`<div class="chat_hites_contenedor">
+					<div class="chat_hites_header">
+					<div class="chat_hites_top_img"><img src="${this.urlBase}/img/avatar-80x80.png" class="chat_hites_avatar2" alt=""></div>
+					<div class="chat_hites_top_titulo">${nombreAvatar} </div>
+					<div class="chat_hites_top_cerrar"><a href="#" id="btn-cerrar"><img src="${this.urlBase}/img/svg/chat_hites_cerrar.svg" alt=""></a> </div>
+					<div class="chat_hites_top_menu"><a id="main-menu" href="#"><img src="${this.urlBase}/img/svg/chat_hites_menu.svg" alt=""></a> </div>
+					</div>
+					<div class="chat_hites_bar"></div>
+					<div id="chat-hites-content" class="chat_hites_content">
+				</div>
+				<div class="chat_hites_bottom">
+					<div class="chat_hites_mensaje_intro">
+						<input type="text" id="txt_message" size="30" placeholder="Escribe tu mensaje..." autocomplete="off">
+					</div>
+					<div class="chat_hites_intro_btn"><img id="img-enviar" class="chat_hites_img-enviar" src="${this.urlBase}/img/svg/chat_hites_next.svg" alt=""></div>
+					</div>`);		
+				//console.log(this.options)
+				this._box = $("#chat-widget-hites");
+				// Define DOM elements
+				this._messageLog = $('#chat-hites-content');
+				this._messageInput2 = $('#txt_message');
+				this._idleTimeout = this.options.idleSecsTimeout * 1000;
+				this._idleTimeoutAdd = this.options.idleSecsTimeoutAdd * 1000;
+				this._timeCount;
+				this._socket;
+				this._clearTimeOutId;
+				this._isTimerOn = false;
+				this._idleMessages = this.options.idleMessages;
+				this._idleMessagesCopy = [...this._idleMessages];
+				// Build DOM
+				//Dectecta si el navegador es chrome por temas de estilo
+				if (navigator.userAgent.toLowerCase().indexOf('chrome') > -1) {
+				} else {
+				}
+				//this._box.addClass('hiden');	
+				this._is_active = false;
+				this._target = document.getElementById('chat-widget-hites');
+				
+				$( document ).ready(() =>{
+					$("#img-enviar").click(()=> {
+						let jsonMessage={};
+						jsonMessage.message = this.getInput();
+						jsonMessage.esBoton = false;
+						jsonMessage.next_action = $("#chat_hites_next_action").val();
+						//console.log(`ENVIANDO1:${JSON.stringify(jsonMessage)}`);
+						this.sendMessage(jsonMessage);
+						this.clearInput();
+					});
+					$("#txt_message").keyup((e)=> {
+						//alert('KEYUP');
+						if (e.keyCode == 13) {
+							let jsonMessage={};
+							jsonMessage.message = this.getInput();
+							jsonMessage.esBoton = false;
+							jsonMessage.next_action = $("#chat_hites_next_action").val();
+							//console.log(`ENVIANDO2:${JSON.stringify(jsonMessage)}`);
+							//console.log(jsonMessage);
+							this.sendMessage(jsonMessage);
+							this.clearInput();                    
+						}
+					});
+
+					$(document).on("click", "#main-menu", async (event) => {
+						console.log('MAIN-MENU');
+						$("#chat-hites-content").html('');
+						this._is_active = false;
+						//await this._toggleChat();
+						this.mensajeInicial();
+					});
+					$(document).on("click", ".chat_hites_opciones", (e) => {
+
+						//console.log('CHAT HITES OPCIONES');
+						let jsonMessage={};
+						
+						jsonMessage.message = e.target.attributes.value.nodeValue;
+						jsonMessage.esBoton = true;
+						//jsonMessage.next_action = $("#chat_hites_next_action").val();
+						jsonMessage.next_action = $(e.target).attr("next_action");
+						//console.log(`ENVIANDO3:${JSON.stringify(jsonMessage)}`);
+						this.sendMessage(jsonMessage);
+					});
+					$(document).on("change", "#rubros,#locales,#regiones,#comunas", (e) => {
+						//console.log('OBJ:', $(e.currentTarget));
+						//console.log('CHANGE', $(e.currentTarget).val());
+						let jsonMessage={};
+						jsonMessage.message = $(e.currentTarget).val();
+						jsonMessage.next_action = $(e.currentTarget).attr("next_action");
+						//console.log(`jsonMessage:${JSON.stringify(jsonMessage)}`);
+						this.sendMessage(jsonMessage);							
+					});		
+					// Events
+					this._on(this.element, {
+					'click .chat_hites_resumen':  (event) => {
+						//console.log('THIS:', $(this));
+						$chat_hites_resumen = $(event.currentTarget);
+						$desplegable = $(event.currentTarget).parent('div');
+						let marca= $desplegable.attr("marca");
+						//console.log(`MARCA:`,marca);
+						$chat_hites_detalle = $chat_hites_resumen.next(".chat_hites_detalle");
+						$chat_hites_detalle.slideToggle(500,  () => {
+							if ($chat_hites_detalle.is(":visible") === true) {
+								let manitoText = $(event.target).text();
+								//console.log(`EVENT TARGET:`, event.target);
+								let jsonMessage={};
+								jsonMessage.message = manitoText;
+								jsonMessage.marca = marca;
+								//console.log(jsonMessage);
+								this.sendMessage(jsonMessage);							
+							}
+						});
+					}});
+					$(document).on("click", "#btn-cerrar", (event) => {			
+						//console.log('CERRANDO');
+						let jsonMessage={};
+						jsonMessage.message = "HITES-ENCUESTA0";
+						jsonMessage.esBoton = true;
+						this.sendMessage(jsonMessage);					
+					});
+					$(document).on("click", "#link-reordena", (event) => {			
+						//console.log('CERRANDO');
+						let jsonMessage={};
+						jsonMessage.message = "HITES-REORDENA1";
+						jsonMessage.esBoton = true;
+						this.sendMessage(jsonMessage);						
+					});
+					$(document).on("click","#btn-cerrar2",(event) => {
+						this._closeChat();
+						$("#div-avatar").show();
+						$("#avatar-pulse").show();
+						$("#chat-widget-hites").remove();
+						$('body').append(`<div id="chat-widget-hites" class="chat_hites"></div>`);
+					});
+					$(document).on("click","#chat_hites_derivar",(event) => {
+						//alert('DERIVAR');
+						let formValido = true;
+						let formData={};
+						$('.chat_hites_validar').each(function(i, objValidate) {
+							//console.log($(objValidate).nextAll(".chat_hites_error").first());
+							let element = $(objValidate).nextAll("div.chat_hites_error").first();
+							element.html('');
+							element.removeClass('chat_hites_validate_red');
+							let idObj=$(objValidate).attr("id");
+							formData[idObj] = $(objValidate).val();
+							if ($(objValidate).attr("id") === "chat_hites_nombre") {
+								if ($(objValidate).val().length <=3) {
+									element.html('Ingrese un nombre válido');
+									element.addClass('chat_hites_validate_red');
+									formValido = false;
+								}
+							}
+							else if ($(objValidate).attr("id") === "chat_hites_correo") {
+								console.log(validateEmail($(objValidate).val()));
+								if (validateEmail($(objValidate).val())===false) {
+									element.html('Ingrese un correo válido');
+									element.addClass('chat_hites_validate_red');
+									formValido = false;
+								}
+							}
+							else if ($(objValidate).attr("id") === "chat_hites_rut") {
+								let respRut = validateRut($(objValidate).val());
+								if (respRut.valido === false) {
+									element.html(respRut.mensaje);
+									element.addClass('chat_hites_validate_red');
+									formValido = false;
+								}								
+							}
+							else if ($(objValidate).attr("id") === "chat_hites_telefono") {
+								
+								let respPhone = isValidPhoneNumber($(objValidate).val());
+								if (respPhone.valido === false) {
+									element.html(respPhone.mensaje);
+									element.addClass('chat_hites_validate_red');
+									formValido = false;
+								}	
+							}
+						});
+						if (formValido===true) {
+							let jsonMessage={};
+							jsonMessage.message = "";
+							jsonMessage.formData = formData;
+							jsonMessage.esForm = true;
+							jsonMessage.next_action = $("#chat_hites_next_action").val();
+							//console.log(`ENVIANDO1:${JSON.stringify(jsonMessage)}`);
+							this.sendMessage(jsonMessage);
+							this.clearInput();
+							$("#chat_hites_derivar").attr('disabled', true);
+						}
+						else {
+							console.log('FORM NO VALIDO');
+						}
+					});
+					$(document).on("click",".chat_hites_link_aqui",(event) => {
+						let marca="Aqui";
+						//let linkText = $(event.target).text();
+						let linkText = $(event.target).attr('link');
+						//console.log(`EVENT TARGET:`, event.target);
+						let jsonMessage={};
+						jsonMessage.message = linkText;
+						jsonMessage.marca = marca;
+						//console.log(jsonMessage);
+						this.sendMessage(jsonMessage);
+						//var url = $(this).attr('href');
+						//window.open(linkText, '_blank');
+					});
+					
+				});
+				await this._toggleChat();
+			},
+			_toggleChat: async function () {
+				if (this._is_active === false) {
+					this._showChat();
+					await this._connectSocket();
+				}
+			},
+			mensajeInicial: async function () {
+				try {
+					if (this._socket && 
+						(this._socket.readyState == 2 ||
+						this._socket.readyState == 3)) {
+						console.log(`readyState ANTES:${this._socket.readyState}`);
+						await this._createSocket();	
+						console.log(`readyState DESPUES:${this._socket.readyState}`);
+					}
+					this._socket.send(JSON.stringify({
+						type: 'message',
+						message: 'hites-menu',
+						ambit: 'Hites',
+						state: 'init',
+						codEmpresa: this.options.codEmpresa,
+						numCuenta: this.options.numCuenta,
+						nombre: this.options.nombre,
+						rut: this.options.rut,
+						isContingencia: this.options.isContingencia,
+						urlBaseBrowser : urlBaseBrowser,
+						urlBaseAmbiente: urlBase
+					}));
+				}
+				catch (e) {
+					console.log(`ERROR mensajeInicial`, e);
+				}
+			},
+			keepAlive: function () {
+				//console.log('KEEP ALIVE');
+				if (this._socket !== undefined && this._socket.readyState == this._socket.OPEN) {
+					this._socket.send(JSON.stringify({
+						type: 'command',
+						message: '/keepalive'
+					}));
+					this._clearTimeOutId = this._delay(this.keepAlive, 10000 );
+					//console.log(`CLEARTIMEOUT ID: ${this._clearTimeOutId}`);
+				}
+			},
+			creaModal: function() {
+				$('#chat-widget-hites').html(`<div class="chat_hites_contenedor chat_hites_blue">
+				<div class="chat_hites_header">
+					<div class="chat_hites_top_cerrar2"><a href="#" id="btn-cerrar2"><img src="${this.urlBase}/img/svg/chat_hites_cerrar.svg" alt=""></a></div>
+				</div>
+				<div id="chat-hites-header2" class="chat-hites-header2">
+					<div class="chat_hites_top_img2">
+						<img src="${this.urlBase}/img/avatar-80x80.png" class="chat_hites_avatar2" alt="">
+					</div>
+					<div class="chat_hites_top_titulo2">${nombreAvatar} </div>
+				</div>					
+				<div id="chat-hites-content" class="chat_hites_content2 chat_hites_blue"></div>
+			</div>`);
+			},
+			_createSocket: async function () {
+				// LOCAL
+				let urlWebSocket = `ws://${locationHost.split(":")[0]}:8444/hites/messages`;
+				if (AMBIENTE === "PROD") {
+					urlWebSocket = `wss://chatbothites.sixbell.com/hites/messages`;
+				}
+				else if (AMBIENTE === "TEST") {
+					urlWebSocket = `wss://demos.sixbell.com:8444/hites/messages`;
+				}
+				console.log(`CREA SOCKET:`, urlWebSocket);
+				this._socket = new WebSocket(urlWebSocket);
+				this._socket.onopen = () => {
+					this.mensajeInicial();
+					this.keepAlive();
+				};
+		
+				this._socket.onmessage = (event) => {
+					var data = JSON.parse(event.data);
+					console.log(`RAW DATA:${JSON.stringify(data)}`);
+					this.receiveMessage(data);
+				};
+		
+				this._socket.onclose = () => {
+					console.log('SOCKET CLOSE');
+				};
+				this._socket.onerror = function(err) {
+					console.error('Socket ERROR: ', err.message, 'Closing socket');
+					this._socket.close();
+				};				
+			},
+			_connectSocket: async function () {
+				// Sockets
+				
+				console.log('FUNCION SOCKET');
+				//console.log(this._socket);
+				//console.log(this._socket.readyState);
+				if (this._socket === undefined) {
+					await this._createSocket();
+				}
+				else {
+					console.log(`readyState:`,this._socket.readyState);
+					if (this._socket.readyState === WebSocket.CLOSED) {
+						await this._closeChat();
+						await this._createSocket();
+					}
+					else {
+						this.mensajeInicial();
+					}
+				}
+			},				
+			_showChat: function () {
+				console.log('SHOW');
+				this._box.show('fade', 800);
+				this._is_active = true;
+				document.getElementById("txt_message").focus();
+			},
+			_closeChat: function () {
+				if (this._socket.readyState == WebSocket.OPEN) {
+					this._socket.send(JSON.stringify({
+						type: 'command',
+						message: 'DISCONNECTED!',
+						ambit: "Hites",
+						state: "disconnect"
+					}));
+				}
+				if (this._socket.readyState != WebSocket.CLOSED) {
+					this._socket.close();
+				}
+				console.log('readyState:',this._socket.readyState, this._socket.OPEN);
+				//restart idle count
+				console.log(`CERRANDO CLEARTIMEOUT ID: ${this._clearTimeOutId}`);
+				clearTimeout(this._clearTimeOutId);
+				this.destroy();
+			},
+			_shouldScroll: function () {
+				let part1 = this._messageLog.scrollTop() + this._messageLog.prop('clientHeight');
+				let part2 = this._messageLog.prop('scrollHeight');
+				//console.log(`p1:${part1},p2:${part2}`);
+				return part1 === part2
+			},
+		
+			_scrollToBottom: function () {
+				this._messageLog.scrollTop(this._messageLog.prop('scrollHeight'));
+			},		
+			getInput: function () {
+				return this._messageInput2.val().replace(/\r?\n/gi, '');
+			},
+		
+			clearInput: function () {
+				this._messageInput2.val('');
+			},
+			/*
+				{"message" : "",
+				"esBoton" : true}
+			*/
+			sendMessage: function (json) {
+				var data = {
+					"type": 'message',
+					"message": json.message,
+				};
+				if (json.marca) {
+					data.marca = json.marca;
+				}
+				if (json.formData) {
+					data.formData = json.formData;
+				}
+				if (json.next_action !== undefined) {
+					data.next_action = json.next_action;
+				}
+				if (json.esBoton === undefined) {
+					json.esBoton = true;
+				}
+				if (json.esBoton === false || json.esForm === false) {
+					this._messageLog.append(`<div class="chat_hites_respuesta_right">
+					<div class="chat_hites_caja_pregunta"> <span>${json.message}</span> </div>
+					<div class="chat_hites_caja_yo"> <span>Yo</span> </div>
+					</div>`);
+				}
+				try {
+					if (this._socket.readyState == WebSocket.OPEN) {
+						this._socket.send(JSON.stringify(data));
+					}
+				}
+				catch (e) {
+					console.log(`No se pudo enviar:${JSON.stringify(data)}`, e);
+				}
+				if (!this._shouldScroll()) {
+					this._scrollToBottom();
+				}			
+			},
+			makeMessageBubble: function (oneMessage) {
+				// por cada mensaje
+				let html='';
+				let type = oneMessage.response_type;
+				let next_action = '';
+				if (oneMessage.next_action !== undefined) {
+					next_action = oneMessage.next_action;
+				}
+				$("#chat_hites_next_action").val(next_action);
+				//console.log(`ONEMESSAGE:${JSON.stringify(oneMessage)}`);
+				if (type === "text") {
+					if (oneMessage.response !== undefined && oneMessage.response !== "") {
+						//console.log(`ANTES BR:${oneMessage.response}`);
+						oneMessage.response = oneMessage.response.replace(/\n/g, "<br>");
+						//console.log(`DESPUES BR:${oneMessage.response}`);
+						html += ` <span class="chat_hites_span">${oneMessage.response}</span> `;
+					}
+				} 
+				else if (type==="botones") {
+					if (oneMessage.link) {
+						console.log(`LINK:${oneMessage.link}`);
+						//$('#script-div').empty().append(`<script>openURL("${oneMessage.link}");</script>`);
+					}						
+					if (oneMessage.response !== undefined && oneMessage.response !== "") {
+						//if (oneMessage.response.indexOf("chat_hites_desplegable") === -1) {
+						oneMessage.response = oneMessage.response.replace(/\n/g, "<br>");
+						//}
+						if (oneMessage.encuesta === true) {
+							html +=` <span class="chat_hites_span_bold2">${oneMessage.response}</span> `;
+						}
+						else {
+							html +=` <span class="chat_hites_span_bold">${oneMessage.response}</span> `;
+						}
+					}
+					if (oneMessage.description !== undefined && oneMessage.description !== "") {
+						//if (oneMessage.description.indexOf("chat_hites_desplegable") === -1) {
+						oneMessage.description = oneMessage.description.replace(/\n/g, "<br>");
+						//}
+						html +=` <span class="chat_hites_span">${oneMessage.description}</span> `;
+					}
+					if (oneMessage.options && oneMessage.options.length >0) {
+						let estado='chat_hites_opciones';
+						for (let i = 0; i < oneMessage.options.length; i++) {
+							estado='chat_hites_opciones';
+							let color='', link='';
+							if (oneMessage.options[i].clase) {
+								estado = oneMessage.options[i].clase;
+							}
+							if (oneMessage.options[i].color) {
+								color =' style="background-color: #90EE90" ';
+							}
+							if (oneMessage.options[i].link) {
+								console.log(`LINK:${oneMessage.options[i].link}`);
+								link =` onclick="window.open('${oneMessage.options[i].link}','_blank')"`;
+							}
+							if (oneMessage.options[i].enabled !== false) {
+								// ACTIVO
+								html += `<button id="menu_${i}" class="${estado}" value="${oneMessage.options[i].clave}" ${color} ${link} next_action="${next_action}">${oneMessage.options[i].label}</button>`;
+							}
+						}
+						//html +='</div></div>';
+					}
+				}
+				else if (type==="combo") {
+					if (oneMessage.response !== undefined && oneMessage.response !== "") {
+						oneMessage.response = oneMessage.response.replace(/\n/g, "<br>");
+						if (oneMessage.encuesta === true) {
+							html +=` <span class="chat_hites_span">${oneMessage.response}</span> `;
+						}
+						else {
+							html +=` <span class="chat_hites_span">${oneMessage.response}</span> `;
+						}
+					}						
+					if (oneMessage.options && oneMessage.options.length >0) {
+						if ($(`#${oneMessage.selectName}`).length !== undefined) {
+							console.log(`REMOVIENDO ${oneMessage.selectName}`);
+							$(`#${oneMessage.selectName}`).empty();
+							$(`#${oneMessage.selectName}`).remove();
+						}
+						html += `<select class="chat_hites_select" id='${oneMessage.selectName}' next_action='${next_action}'>`;
+						for (let i = 0; i < oneMessage.options.length; i++) {
+							html += `<option value="${oneMessage.options[i].value}">${oneMessage.options[i].label}</option>`;
+						}
+						html += "</select>"
+					}
+				}
+				else if (type === "form") {
+					console.log(`FORM:`);
+					html += ` <span class="chat_hites_span">
+					<div class="chat_hites_wrap">
+						<input type="text" id="chat_hites_nombre" placeholder="Nombre" class="chat_hites_validar">
+						<div class='chat_hites_error'></div>
+					</div>
+					<div class="chat_hites_wrap">
+						<input type="text" id="chat_hites_correo" placeholder="Correo" class="chat_hites_validar">
+						<div class='chat_hites_error'></div>
+					</div>
+					<div class="chat_hites_wrap">
+						<input type="text" id="chat_hites_rut" placeholder="Rut" class="chat_hites_validar">
+						<div class='chat_hites_error'></div>
+					</div>
+					<div class="chat_hites_wrap">
+						<input type="text" id="chat_hites_telefono" placeholder="Teléfono" class="chat_hites_validar">					
+						<div class='chat_hites_error'></div>
+					</div>
+					<div class="chat_hites_wrap">
+						<input type="button" id="chat_hites_derivar" class="chat_hites_boton" value="Derivar">
+					</div>
+					</span>`;
+
+				}
+				return html;
+			},
+			receiveMessage: function (data) {
+				let html='';
+				let message = data.message;
+				let scroll = false;
+				let encuesta = false;
+				if (message) {
+					console.log(`MESSAGE:`, message);
+				}
+				if (message && Array.isArray(message) && message.length>0) {
+					//console.log(`message:${JSON.stringify(message)}`);
+					if (data.encuesta !== undefined && data.encuesta === true) {
+						encuesta = true;
+						html +=`<div class="chat_hites_respuesta_left2">
+									<div class="chat_hites_caja_respuesta2">`;
+						this.creaModal();
+					}
+					else {
+						html +=`<div class="chat_hites_respuesta_left">
+									<div class="chat_hites_caja_respuesta">`;
+					}
+					for (var i = 0; i < message.length; i++) {
+						let oneMessage = message[i];
+						oneMessage.encuesta = encuesta;
+						console.log(`ONEMESSAGE:`, oneMessage);
+						html += this.makeMessageBubble(oneMessage);
+					}
+					html += `</div></div>`;
+					if (data.encuesta === undefined) {
+						html +=`<div class="chat_hites_caja_bot"><span>${nombreAvatar} ${data.time}</span></div>`;
+					}
+					scroll = true;
+				}
+				if (data.close !== undefined && data.close ===true) {
+					console.log('HIDE');
+					this._closeChat();
+					$("#div-avatar").show();
+					$("#avatar-pulse").show();
+					$("#chat-widget-hites").remove();
+					$('body').append(`<div id="chat-widget-hites" class="chat_hites"></div>`);
+				}
+				else if (data.encuesta !== undefined && data.encuesta===true) {
+					console.log('SHOW');
+					$("#chat-hites-content").empty().html(html);
+					//$('.chat_hites_caja_respuesta_boxes').css('background','#156bb6');
+				}
+				else if (html !== '')
+				{
+					this._messageLog.append(html);
+					if ($("#txt_message").is(':visible')===true) {
+						document.getElementById("txt_message").focus();
+					}
+				}			
+				if (scroll === true && !this._shouldScroll()) {
+					this._scrollToBottom();
+				}
+			},
+			returnRandomMessage: function () {
+				this._idleMessagesCopy = this._idleMessagesCopy.length === 0 ? [...this._idleMessages] : this._idleMessagesCopy;
+				return this._idleMessagesCopy.splice(Math.floor(Math.random() * this._idleMessagesCopy.length), 1)[0]
+			}
+		});// cierra clase widget
+		$('#chat-widget-hites').chatwidgetHites({
+			name: '',
+			avatarImage: `${urlBase}/img/avatar-transparente.png`,
+			avatarImage2: `${urlBase}/img/avatar-transparente.png`,
+			bubbleImage: `${urlBase}/img/avatar-transparente.png`,
+			isContingencia: false,
+			idleSecsTimeout: 3,
+			idleSecsTimeoutAdd: 5,
+			idleMessages: ['¿Necesitas ayuda?', '¿Puedo ayudarte?', '¿Tienes alguna duda?']
+		});
+		$('#chat-widget-hites').hide();
+	} // createChat
+	$(document).on("click", ".chat_hites_avatar", function () {
+		console.log('CLICK AVATAR');
+		$("#div-avatar").hide();
+		$("#avatar-pulse").hide();
+		createChat(urlBase);
+		$("#chat-widget-hites").show();
+	});
+}

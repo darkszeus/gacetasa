@@ -1,0 +1,1225 @@
+window.rt.promos = [];
+window.rt.promoExclude = [];
+var rt = window['rt'] || [];
+var _rt_d = document;
+var _rt_w = window;
+var _rt_l = location;
+rt._rt_pub = {};
+rt._rt_sub = {};
+rt.applyFunc = function (f) {
+    setTimeout(function () {
+        try {
+            f()
+        } catch (e) {
+        }
+    }, 1)
+};
+rt.flagPub = function (key) {
+    rt._rt_pub[key] = true;
+    if (rt._rt_sub[key]) {
+        var s = rt._rt_sub[key];
+        while (s.length > 0) {
+            rt.applyFunc(s.shift())
+        }
+    }
+};
+rt.flagPollingPub = function (_k, _f, _t) {
+    var timer = setInterval(function () {
+        try {
+            if (_f()) {
+                clearInterval(timer);
+                rt.flagPub(_k);
+            }
+        } catch (e) {
+        }
+    }, _t);
+    return timer;
+};
+rt.flagSub = function (key, f) {
+    if (rt._rt_pub[key]) {
+        rt.applyFunc(f);
+    } else {
+        if (!rt._rt_sub[key])
+            rt._rt_sub[key] = [];
+        rt._rt_sub[key].push(f);
+    }
+}
+rt.flagSet = rt.flagPub;
+rt.getOrFailure = function (arr, success, failure) {
+    var a = arr || [];
+    if (a.length > 0)
+        success(a[0]);
+    else
+        failure();
+};
+rt.RetargetingFuncs = [];
+rt.rawResponse = false;
+rt.upload = function (value) {
+    if (value.constructor === Array) {
+        try {
+            var asyncId = rt.addAsync(value);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', rt.domain + '/pixel');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('rtID', rt.rtID);
+            xhr.setRequestHeader('rtS', rt.rtS);
+            xhr.setRequestHeader('rtV', '2');
+            if (value.rtc) {
+                xhr.setRequestHeader('rtc', value.rtc);
+            } else {
+                xhr.setRequestHeader('rtc', rt.currency);
+            }
+            var onerror = function () {
+                for (var k = 0; k < value.length; k++) {
+                    var event = value[k];
+                    // ocupar pixel
+                    var i = _rt_d.createElement('img');
+                    i.style = 'display: none';
+                    i.src = rt.domain + '/pixel?' + encodeURI(event.join("&"));
+                    var t = _rt_d.getElementsByTagName('script')[0];
+                    t.appendChild(i);
+                    rt.removeAsync(asyncId);
+                }
+            };
+            xhr.onerror = onerror;
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 3) {
+                    rt.removeAsync(asyncId);
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    try {
+                        if (typeof rt.rawResponse === "function") rt.rawResponse(xhr.responseText);
+                        var actions = JSON.parse(xhr.responseText);
+                        if (_rt_w.rtGroupEvents) {
+                            var group_actions = actions.reduce(function (a, e) {
+                                if (!a.hasOwnProperty(e.action)) a[e.action] = {};
+                                if (!a[e.action].hasOwnProperty(e.body[0])) a[e.action][e.body[0]] = [];
+                                a[e.action][e.body[0]].push(e);
+                                return a;
+                            }, {});
+                            var group_actions_keys = Object.keys(group_actions);
+                            for (var i = 0; i < group_actions_keys.length; i++) {
+                                var action_name = group_actions_keys[i];
+                                if (action_name.indexOf("Price") !== -1 || action_name === "Error") action_name += "Group";
+                                var func = _rt_w[action_name]
+                                    || rt[action_name];
+
+                                var group_response = group_actions[group_actions_keys[i]];
+                                var group_response_keys = Object.keys(group_response);
+                                for (var o = 0; o < group_response_keys.length; o++) {
+                                    var response = group_response[group_response_keys[o]];
+                                    try {
+                                        if (_rt_w.rtlog)
+                                            console.log('rt.resp.group', action_name, response);
+                                        if (func)
+                                            func(response);
+                                    } catch (e) {
+                                        console.error(e);
+                                    }
+                                    for (var j = 0, l = rt.RetargetingFuncs.length; j < l; j++) {
+                                        rt.applyFunc((function (a, b) {
+                                            return function () {
+                                                a(b);
+                                            }
+                                        })(rt.RetargetingFuncs[j], response));
+                                    }
+                                }
+                            }
+                        } else {
+                            for (var i = 0; i < actions.length; i++) {
+                                var response = actions[i];
+                                var func = _rt_w[response.action]
+                                    || rt[response.action];
+                                try {
+                                    if (_rt_w.rtlog)
+                                        console.log('rt.resp', response);
+                                    if (func)
+                                        func(response.body);
+                                } catch (e) {
+                                    console.error(e);
+                                }
+                                for (var j = 0, l = rt.RetargetingFuncs.length; j < l; j++) {
+                                    rt.applyFunc((function (a, b) {
+                                        return function () {
+                                            a(b);
+                                        }
+                                    })(rt.RetargetingFuncs[j], response));
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+            };
+            var json = JSON.stringify(value);
+            xhr.send(json);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+};
+rt.to = function (param) {
+    if (param) {
+        var a = [], t = [];
+        while (param.length > 0) {
+            while (param.length > 0) {
+                e = param.shift();
+                if (e) {
+                    if (e instanceof Array) {
+                        a.push(e);
+                    } else if (typeof e === "function") {
+                        rt.applyFunc(e);
+                        break;
+                    } else if (e.rtc) {
+                        a.rtc = e.rtc;
+                        break;
+                    }
+                }
+            }
+            if (a.length > 0) {
+                t = a.slice();
+                t.rtc = a.rtc;
+                _rt_w.setTimeout(function () {
+                    rt.upload(t);
+                }, 1);
+            }
+            a = [];
+        }
+        if (a.length > 0) {
+            t = a.slice();
+            t.rtc = a.rtc;
+            _rt_w.setTimeout(function () {
+                rt.upload(t);
+            }, 1);
+        }
+        if (_rt_w.rtlog) {
+            for (var i = 0, len = param.length; i < len; i++) {
+                var msg = param[i];
+                console.log('rt.send', msg);
+            }
+        }
+    }
+};
+rt.urlParams = function () {
+    var u = (_rt_l.search + _rt_l.hash).split(/[?&\/#]/), o = {};
+    for (var i = 0; i < u.length; i++) {
+        if (u[i].length > 2 && u[i].indexOf('=') > 0) {
+            var r = u[i].split('=');
+            o[decodeURIComponent(r[0])] = decodeURIComponent(r[1]);
+        }
+    }
+    return o;
+};
+
+// store https://gist.github.com/Fluidbyte/4718380
+rt.lstore = function store(key, value) {
+    var lsSupport = false;
+    if (localStorage) {
+        lsSupport = true;
+    }
+    if (typeof value !== "undefined" && value !== null) {
+        if (typeof value === 'object') {
+            value = JSON.stringify(value);
+        }
+        if (lsSupport) {
+            localStorage.setItem(key, value);
+        } else {
+            rt.cstore(key, value);
+        }
+    }
+    if (typeof value === "undefined") {
+        var data = null;
+        if (lsSupport) {
+            data = localStorage.getItem(key);
+        } else {
+            data = rt.cstore(key);
+        }
+        try {
+            var parsed = JSON.parse(data);
+            data = parsed;
+        } catch (e) {
+        }
+        return data;
+    }
+    if (value === null) {
+        if (lsSupport) {
+            localStorage.removeItem(key);
+        } else {
+            rt.cstore(key, null);
+        }
+    }
+};
+
+rt.cstore = function store(key, value) {
+
+    if (typeof value !== "undefined" && value !== null) {
+        if (typeof value === 'object') {
+            value = JSON.stringify(value);
+        }
+        createCookie(key, value, 30);
+    }
+    if (typeof value === "undefined") {
+        var data = null;
+
+        data = readCookie(key);
+        try {
+            var parsed = JSON.parse(data);
+            data = parsed;
+        } catch (e) {
+        }
+        return data;
+    }
+    if (value === null) {
+        createCookie(key, '', -1);
+    }
+
+    function chunkString(str, len) {
+        var _size = Math.ceil(str.length / len), _ret = new Array(_size), _offset;
+        for (var _i = 0; _i < _size; _i++) {
+            _offset = _i * len;
+            _ret[_i] = str.substring(_offset, _offset + len);
+        }
+        return _ret;
+    }
+
+    function createCookie(key, value, exp) {
+        var chunks = chunkString(value, 1000);
+        _createCookie(key + '_L', chunks.length, exp);
+        for (var i = 0, l = chunks.length; i < l; i++) {
+            _createCookie(key + '_' + i, chunks[i], exp);
+        }
+    }
+
+    function readCookie(key) {
+        var chunkNum = _readCookie(key + '_L');
+        var chunks = [];
+        if (chunkNum && !isNaN(+chunkNum)) {
+            for (var i = 0, l = +chunkNum; i < l; i++) {
+                chunks.push(_readCookie(key + '_' + i));
+            }
+            return chunks.join("");
+        }
+        return null;
+    }
+
+    function _createCookie(key, value, exp) {
+        var date = new Date();
+        date.setTime(date.getTime() + (exp * 24 * 60 * 60 * 1000));
+        var expires = "; expires=" + date.toGMTString();
+        _rt_d.cookie = '__rt__' + key + "=" + value + expires + "; path=/";
+    }
+
+    function _readCookie(key) {
+        var nameEQ = '__rt__' + key + "=";
+        var ca = _rt_d.cookie.split(';');
+        for (var i = 0, max = ca.length; i < max; i++) {
+            var c = ca[i];
+            while (c.charAt(0) === ' ')
+                c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) === 0)
+                return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+};
+
+// Async
+rt.randNum = function (min, max) {
+    return Math.round(Math.random() * (max - min) + min);
+};
+rt.addAsync = function (value) {
+    if (value.constructor !== Array) return 0;
+    var id, __rtAsync = rt.lstore("__rtAsync");
+    __rtAsync = __rtAsync || {};
+    do {
+        id = rt.randNum(1, 9999999);
+    } while (__rtAsync && __rtAsync.constructor === Object && __rtAsync.hasOwnProperty(id));
+    __rtAsync[id] = value;
+    if (_rt_w.rtlog)
+        console.log('rt.Async Add', __rtAsync);
+    rt.lstore("__rtAsync", __rtAsync);
+    return id;
+};
+rt.removeAsync = function (id) {
+    var __rtAsync = rt.lstore("__rtAsync");
+    if (_rt_w.rtlog)
+        console.log('rt.Async Remove', __rtAsync);
+    if ((__rtAsync && __rtAsync.constructor === Object && __rtAsync.hasOwnProperty(id))) {
+        delete __rtAsync[id];
+        rt.lstore("__rtAsync", __rtAsync);
+        return true;
+    }
+    return false;
+};
+rt.execAsync = function () {
+    var __rtAsync = rt.lstore("__rtAsync");
+    if (!__rtAsync || __rtAsync.constructor !== Object) return;
+    var k = Object.keys(__rtAsync);
+    for (var s = 0; s < k.length; s++) {
+        if (_rt_w.rtlog)
+            console.log('rt.Async Exec', __rtAsync[k[s]]);
+        rt.removeAsync(k[s]);
+        //FIX two dimension Array
+        if (Array.isArray(__rtAsync[k[s]]) && Array.isArray(__rtAsync[k[s]][0])) {
+            __rtAsync[k[s]] = __rtAsync[k[s]][0];
+            if (_rt_w.rtlog) console.log('rt.Async Exec two dimension Array to one', __rtAsync[k[s]]);
+        }
+        rt.push(__rtAsync[k[s]]);
+    }
+};
+setTimeout(rt.execAsync, 1000);
+
+// queuePush
+rt.timedTime = 1000;
+var _rt_timedGAP = function (v) {
+    var x = rt.lstore('__rtp');
+    if (!x)
+        x = [];
+    x.push(v);
+    rt.lstore('__rtp', x);
+};
+var _rt_tpf = function () {
+    var x = rt.lstore('__rtp');
+    rt.lstore('__rtp', []);
+    rt.to(x);
+};
+var _rt_tpt = false;
+_rt_tpf();
+rt.queuePush = function (e) {
+    if (_rt_tpt) {
+        clearTimeout(_rt_tpt);
+        _rt_tpt = false;
+    }
+    _rt_timedGAP(e);
+    _rt_tpt = setTimeout(_rt_tpf, rt.timedTime);
+}
+
+// js error handling
+if (!_rt_w["rtERR"]) {
+    var ew = _rt_w.onerror;
+    var er = [];
+    var en = function () {
+        var ea = [].slice.call(arguments);
+        if (ew) {
+            ew.apply(null, ea);
+        }
+        var s = JSON.stringify(ea);
+        if (er.indexOf(s) < 0) {
+            er.push(s);
+            ea.unshift("JSError", _rt_l.href);
+            rt.push(ea);
+        }
+    };
+    _rt_w["rtERR"] = true;
+    _rt_w.onerror = en;
+}
+
+// API
+_rt_w.rtGetContent = function (path, func, params, body) {
+    try {
+        var par = params;
+        var pbody = null;
+        switch (typeof body) {
+            case "string":
+            case "number":
+            case "boolean":
+                pbody = String(body);
+                break;
+            case "object":
+                pbody = JSON.stringify(body);
+                break;
+            default:
+                pbody = null;
+        }
+        ;
+        if (!(par instanceof Array)) {
+            par = [par];
+        }
+        var p = par.join('/');
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', rt.domain + '/' + path + '/' + p);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('rtID', rt.rtID);
+        xhr.setRequestHeader('rtS', rt.rtS);
+        xhr.setRequestHeader('rtV', '2');
+        xhr.onerror = onerror;
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                try {
+                    var c = xhr.responseText;
+                    if (_rt_w.rtlog)
+                        console.log.apply(null, [c]);
+                    if (func) {
+                        func.apply(body, [c]);
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        };
+        xhr.send(pbody);
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+_rt_w.rtGetJson = function (path, func, params, body) {
+    var wrap = function (param) {
+        func(JSON.parse(param))
+    };
+    _rt_w.rtGetContent(path, wrap, params, body);
+};
+// old API
+_rt_w.rtSeo = {};
+_rt_w.rtSeo.getContent = function (k, i) {
+};
+_rt_w.rtSession = {};
+_rt_w.rtSession.getContent = function (func, params) {
+    _rt_w.rtGetContent('session', func, params || ['view'])
+};
+_rt_w.rtDetail = {};
+_rt_w.rtDetail.getContent = function (func, params) {
+    _rt_w.rtGetContent('detail', func, params)
+};
+// new API
+_rt_w.rtContent = {};
+// new SEO
+_rt_w.rtContent._getSeo = function (k, i) {
+    _rt_w.rtGetContent('seo', function (c) {
+        var n = _rt_d.createElement('div');
+        n.setAttribute('id', 'rtSeo');
+        n.innerHTML = c;
+        _rt_d.getElementsByTagName("body")[0].appendChild(n);
+    }, [k, i]);
+};
+_rt_w.rtContent.seoHome = function () {
+    _rt_w.rtContent._getSeo('home', 'home')
+};
+_rt_w.rtContent.seoProduct = function (id) {
+    _rt_w.rtContent._getSeo('product', id)
+};
+_rt_w.rtContent.seoCategory = function (id) {
+    _rt_w.rtContent._getSeo('category', id)
+};
+// new SESSION
+_rt_w.rtContent.sessionView = function (func) {
+    _rt_w.rt.cacheCallback("rtContent.sessionView", 1,
+        function(cb){
+            _rt_w.rtGetJson('session', cb, ['view']);
+        },
+        func);
+};
+_rt_w.rtContent.sessionGeo = function (func) {
+    _rt_w.rtGetJson('session', func, 'geo');
+};
+_rt_w.rtContent.sessionKeySet = function (func, key, value) {
+    _rt_w.rtGetContent('session', func, ['keySet', key], value);
+};
+_rt_w.rtContent.sessionKeyGet = function (func, key) {
+    _rt_w.rtGetContent('session', func, ['keyGet', key]);
+};
+_rt_w.rtContent.sessionKeyGets = function keyGets() {
+    // llaves a descargar
+    var args = [].slice.call(arguments);
+    if (args.length > 0) {
+        var func = args[0];
+        var vv = [];
+
+        function recursive(a, b) {
+            rtContent.sessionKeyGet(function (va) {
+                vv.push(va);
+                if (b && b.length > 0) {
+                    recursive(b[0], b.slice(1));
+                } else {
+                    func.apply(null, vv);
+                }
+            }, a);
+        }
+
+        recursive(args[1], args.slice(2));
+    }
+};
+
+
+// DOM
+_rt_w.rtContent.createElement = function (tag, attrs) {
+    var e = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+        if (attrs.hasOwnProperty(k)) {
+            e.setAttribute(k, attrs[k]);
+        }
+    }
+    return e;
+}
+
+_rt_w.rtContent.createElementHtml = function (html) {
+    var div = document.createElement('div');
+    div.innerHTML = html.trim();
+    return div.firstChild;
+}
+
+//_rt_w.rt.promoExcluded = ["BLACKJS", "SOLO5HS"];
+_rt_w.rtContent.isExcludedPromoCode = function (code) {
+    if (code && code !== "" && code.length > 3) {
+        var ucode = code.toUpperCase();
+        return (rt.promoExclude.indexOf(ucode) > -1);
+    }
+    return false;
+}
+
+//_rt_w.rt.promos = ["BLA", "SOL"];
+_rt_w.rtContent.getCampaignFromPromoCode = function (code) {
+    if (code && code !== "" && code.length > 3) {
+        var ucode = code.substring(0, 3).toUpperCase();
+        return (rt.promos.indexOf(ucode) > -1);
+    } else {
+        return false;
+    }
+};
+
+
+rt.cacheCallback = function(key, minutes, original, callback) {
+    var kts = key + "_ts";
+    var ts = rt.lstore(kts) + (minutes*60000);
+    var v = rt.lstore(key);
+    var ct = new Date().getTime();
+
+    if (ts && v && ts > ct) {
+        callback(v);
+    } else {
+        original(function(data){
+            rt.lstore(key, data);
+            rt.lstore(kts, ct);
+            callback(data);
+        });
+    }
+}
+
+rt.rstore = function (func, key, value) {
+    if (value) {
+        _rt_w.rtGetContent('session', func, ['keySet', key], value);
+    } else {
+        _rt_w.rtGetContent('session', func, ['keyGet', key]);
+    }
+};
+// new DETAIL
+_rt_w.rtContent.getProduct = function (func, id) {
+    _rt_w.rtGetJson('detail', func, ['product', id]);
+};
+// new PROMO
+_rt_w.rtContent.promoTranslate = function (func, promo, hash) {
+    _rt_w.rtGetJson('promo', func, [promo, 'translate'], hash);
+};
+_rt_w.rtContent.promoValidate = function (func, promo, hash) {
+    _rt_w.rtGetJson('promo', func, [promo, 'validate'], hash);
+};
+_rt_w.rtContent.promoUse = function (func, promo, hash) {
+    _rt_w.rtGetJson('promo', func, [promo, 'use'], hash);
+};
+_rt_w.rtContent.promoObtain = function (func, promo, ref) {
+    _rt_w.rtGetJson('promo', func, [promo, 'obtain'], ref);
+};
+_rt_w.rtContent.promoDisplay = function (func, promo, ref) {
+    _rt_w.rtGetJson('promo', func, [promo, 'display'], ref);
+};
+
+// new REPLACE
+_rt_w.rtContent.getRedirectURL = function (func, url) {
+    _rt_w.rtGetJson('replace', func, 'redirectUrl', url);
+};
+
+// Error, NoAction, OverPrice, UnderPrice, Retargeting
+rt.Error = function (msg) {
+};
+rt.NoAction = function (msg) {
+};
+rt.OverPrice = function (msg) {
+};
+rt.UnderPrice = function (msg) {
+};
+rt.ZeroPrice = function (msg) {
+};
+rt.ErrorGroup = function (groupmsg) {
+    var func = _rt_w['Error'] || rt['Error'];
+    if (func) groupmsg.forEach(function (msg) {
+        func(msg.body)
+    });
+};
+rt.OverPriceGroup = function (groupmsg) {
+    var func = _rt_w['OverPrice'] || rt['OverPrice'];
+    if (func) groupmsg.forEach(function (msg) {
+        func(msg.body)
+    });
+};
+rt.UnderPriceGroup = function (groupmsg) {
+    var func = _rt_w['OverPrice'] || rt['OverPrice'];
+    if (func) groupmsg.forEach(function (msg) {
+        func(msg.body)
+    });
+};
+rt.ZeroPriceGroup = function (groupmsg) {
+    var func = _rt_w['UnderPrice'] || rt['UnderPrice'];
+    if (func) groupmsg.forEach(function (msg) {
+        func(msg.body)
+    });
+};
+rt.SQP2SKU = function (sqps) {
+    var skus = [];
+    for (var i = 0, l = sqps.length; i < l; i += 3) {
+        skus.push(sqps[i]);
+    }
+    return skus;
+};
+rt.SQP2OBJ = function (sqps) {
+    var objs = [];
+    for (var i = 0, l = sqps.length; i < l; i += 3) {
+        objs.push(sqps.slice(i, i + 3));
+    }
+    return objs;
+};
+rt.Retargeting = function (group_msg) {
+    if (_rt_w.rtlog) console.log("rt.Retargeting", group_msg);
+    if (group_msg.constructor.name !== "Array") group_msg = [group_msg];
+    if (group_msg[0].constructor.name !== "Object") group_msg = [group_msg];
+    group_msg.forEach(function (msg) {
+        if (_rt_w.rtGroupEvents && msg.constructor.name === "Object" && msg.hasOwnProperty("body")) msg = msg.body;
+        if (_rt_w.rtfb) {
+            var out = false;
+            switch (msg[0]) {
+                case 'ProductView':
+                    out = ['track', 'ViewContent', {
+                        currency: rt.currency,
+                        value: msg[2],
+                        content_ids: [msg[1]],
+                        content_type: 'product'
+                    }];
+                    break;
+                case 'ProductAdd':
+                    out = ['track', 'AddToCart', {
+                        currency: rt.currency,
+                        value: msg[2],
+                        content_ids: [msg[1]],
+                        content_type: 'product'
+                    }];
+                    break;
+                case 'CartCheckoutSQP':
+                    out = ['track', 'InitiateCheckout', {
+                        currency: rt.currency,
+                        value: msg[2],
+                        content_ids: rt.SQP2SKU(msg.slice(3)),
+                        content_type: 'product'
+                    }];
+                    break;
+                case 'CartPurchaseSQP':
+                    out = ['track', 'Purchase', {
+                        currency: rt.currency,
+                        value: msg[2],
+                        content_ids: rt.SQP2SKU(msg.slice(3)),
+                        content_type: 'product'
+                    }];
+                    break;
+                default:
+                    break;
+            }
+            if (out) {
+                if (_rt_w.rtlog)
+                    console.log.apply(null, ['w.rtfbf'].concat(out));
+                var func = _rt_w.rtfbf || console.log;
+                try {
+                    func.apply(null, out);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+        if (_rt_w.rtec) {
+            var out = false;
+            var acc = [];
+            switch (msg[0]) {
+                case 'ProductView':
+                    acc.push(['ec:addImpression', {
+                        'id': msg[1],
+                        'price': msg[2]
+                    }]);
+                    acc.push(['send', 'event', 'rt', 'ProductView']);
+                    break;
+                case 'ProductAdd':
+                    acc.push(['ec:addProduct', {
+                        'id': msg[1],
+                        'price': msg[2]
+                    }]);
+                    acc.push(['ec:setAction', 'add']);
+                    acc.push(['send', 'event', 'rt', 'ProductAdd']);
+                    break;
+                case 'ProductDel':
+                    acc.push(['ec:addProduct', {
+                        'id': msg[1]
+                    }]);
+                    acc.push(['ec:setAction', 'remove']);
+                    acc.push(['send', 'event', 'rt', 'ProductDel']);
+                    break;
+                case 'CartCheckoutSQP':
+                    rt.SQP2OBJ(msg.slice(3)).map(function (sqp) {
+                        return ['ec:addProduct', {
+                            'id': sqp[0],
+                            'quantity': sqp[1],
+                            'price': sqp[2]
+                        }];
+                    }).forEach(function (sqp) {
+                        acc.push(sqp);
+                    });
+                    acc.push(['ec:setAction', 'checkout', {
+                        'step': msg[1]
+                    }]);
+                    acc.push(['send', 'event', 'rt', 'CaheckoutSQP']);
+                    break;
+                case 'CartPurchaseSQP':
+                    rt.SQP2OBJ(msg.slice(3)).map(function (sqp) {
+                        return ['ec:addProduct', {
+                            'id': sqp[0],
+                            'quantity': sqp[1],
+                            'price': sqp[2]
+                        }];
+                    }).forEach(function (sqp) {
+                        acc.push(sqp);
+                    });
+                    acc.push(['ec:setAction', 'purchase', {
+                        'id': msg[1],
+                        'revenue': msg[2]
+                    }]);
+                    acc.push(['send', 'event', 'rt', 'CartPurchaseSQP']);
+                    break;
+                default:
+                    break;
+            }
+            var func = _rt_w.rtecf || console.log;
+            acc.forEach(function (out) {
+                if (_rt_w.rtlog)
+                    console.log.apply(null, ['w.rtecf'].concat(out));
+                try {
+                    func.apply(null, out);
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        }
+        if (_rt_w.rtan) {
+            var out = false;
+            var acc = [];
+            switch (msg[0]) {
+                case 'CustomEvent':
+                    acc.push(['send', 'event', msg[1], msg[2], msg[3]]);
+                    break;
+                default:
+                    break;
+            }
+            var func = _rt_w.rtanf || console.log;
+            acc.forEach(function (out) {
+                if (_rt_w.rtlog)
+                    console.log.apply(null, ['w.rtanf'].concat(out));
+                try {
+                    func.apply(null, out);
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        }
+        if (_rt_w.rtaw) {
+            var out = false;
+            switch (msg[0]) {
+                case 'ProductView':
+                    out = [{
+                        dynx_itemid: msg[1],
+                        dynx_totalvalue: msg[2],
+                        dynx_pagetype: 'offerdetail',
+                        ecomm_totalvalue: msg[2],
+                        ecomm_pagetype: 'product',
+                        ecomm_prodid: msg[1]
+                    }];
+                    break;
+                case 'CartCheckoutSQP':
+                    out = [{
+                        dynx_itemid: rt.SQP2SKU(msg.slice(3)),
+                        dynx_totalvalue: msg[2],
+                        dynx_pagetype: 'conversionintent',
+                        ecomm_totalvalue: msg[2],
+                        ecomm_pagetype: 'cart',
+                        ecomm_prodid: rt.SQP2SKU(msg.slice(3))
+                    }];
+                    break;
+                case 'CartPurchaseSQP':
+                    out = [{
+                        dynx_itemid: rt.SQP2SKU(msg.slice(3)),
+                        dynx_totalvalue: msg[2],
+                        dynx_pagetype: 'conversion',
+                        ecomm_totalvalue: msg[2],
+                        ecomm_pagetype: 'purchase',
+                        ecomm_prodid: rt.SQP2SKU(msg.slice(3))
+                    }];
+                    break;
+                default:
+                    break;
+            }
+            if (out) {
+                if (_rt_w.rtlog)
+                    console.log.apply(null, ['w.rtawf'].concat(out));
+                var func = _rt_w.rtawf || console.log;
+                try {
+                    func.apply(null, out);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+        if (_rt_w.rt_seo) {
+            switch (msg[0]) {
+                case 'ProductView':
+                    _rt_w.rtSeo.getContent('product', msg[1]);
+                    break;
+                case 'CategoryView':
+                    _rt_w.rtSeo.getContent('category', msg[1]);
+                    break;
+                default:
+                    break;
+            }
+        }
+    });
+};
+
+function filter(o, p, c) {
+    var u = [];
+    if (c)
+        u.push(c);
+    var k = Object.getOwnPropertyNames(o);
+    for (var i = 0; i < k.length; i++) {
+        if (k[i].substring(0, p.length).toLowerCase() == p) {
+            u.push(k[i]);
+            u.push(o[k[i]]);
+        }
+    }
+    return u;
+};
+
+function extract(obj, evt, ff, of) {
+    var ret = [evt], all = true;
+    for (var i = 0, len = ff.length; i < len; i++) {
+        if (obj[ff[i]]) {
+            ret.push(obj[ff[i]]);
+        } else {
+            all = false;
+        }
+    }
+    if (of) {
+        for (var i = 0, len = of.length; i < len; i++) {
+            if (obj[of[i]]) {
+                ret.push(obj[of[i]]);
+            } else {
+                ret.push('');
+            }
+        }
+    }
+    if (all) {
+        return ret;
+    } else {
+        return false;
+    }
+};
+var up = rt.urlParams(), cc = [];
+var ut = filter(up, 'utm', 'UTMData'), ug = filter(up, 'gclid', 'GCLIDData'); // uu =
+// filter(up,
+// 'utm',
+// 'UpdateUser')
+var rte = extract(up, 'CustomEvent',
+    ['rt_event_category', 'rt_event_action'], ['rt_event_label']);
+if (ut.length > 1)
+    rt.push(ut);
+if (ug.length > 1)
+    rt.push(ug);
+if (rte)
+    rt.push(rte); // if (uu.length > 1) rt.push(uu)
+
+rt.push(function () {
+    if (_rt_w["rtredir"]) {
+        console.log("rtredir active");
+        var old_url = _rt_w.rtredirurl || '';
+        if (typeof old_url === "function") old_url = old_url();
+        if (!old_url || old_url.indexOf("rtredir") !== -1) return;
+        try {
+            var url = old_url;
+            var url_s, url_h = "";
+            if (url.indexOf("#") !== -1) {
+                url_h = url.split("#")[1];
+                url = url.split("#")[0];
+            }
+            if (url.indexOf("?") !== -1) {
+                url_s = url.split("?")[1];
+                url = url.split("?")[0];
+            }
+            _rt_w.rtContent.getRedirectURL(function (new_url) {
+                    if (new_url.length > 0) {
+                        new_url = new_url[0];
+
+                        if (new_url.indexOf("#") !== -1) {
+                            url_h = new_url.split("#")[1];
+                            new_url = new_url.split("#")[0];
+                        }
+                        if (new_url.indexOf("?") !== -1) {
+                            url_s = new_url.split("?")[1];
+                            new_url = new_url.split("?")[0];
+                        }
+                        if (url_s) {
+                            new_url = new_url + '?' + url_s + '&rtredir';
+                        } else {
+                            new_url = new_url + '?' + 'rtredir';
+                        }
+                        if (url_h) new_url = new_url + '#' + url_h;
+
+                        if (_rt_w.rtlog) console.log("rtredir success from " + old_url + " to " + new_url);
+                        window.location.href = new_url;
+                    } else {
+                        if (_rt_w.rtlog) console.log("rtredir fail for " + url + " (Original: " + old_url + ")");
+                    }
+                }
+                ,
+                url
+            );
+        } catch (e) {
+            console.error(e);
+        }
+
+    }
+})
+;
+
+// buscar id onesignal
+rt.push(function(){
+    rt.flagSub('OneSignal', function(){
+        OneSignal.isPushNotificationsEnabled(function(isEnabled) {
+            if (isEnabled) {
+                OneSignal.getUserId( function(userId) {
+                    rt.push([ "UpdateUser", "webpush", userId]);
+                });
+            }
+        });
+    });
+    var count = 0;
+    var timer = rt.flagPollingPub('OneSignal', function(){
+        count ++;
+        if (count > 10) {
+            clearInterval(timer);
+        }
+        if(_rt_w['OneSignal']) {
+            return true;
+        }
+        return false;
+    }, 1000);
+});
+
+// cleanup y push
+if (rt.length > 0)
+    rt.to(rt);
+
+rt.push = function () {
+    var args = Array.prototype.slice.call(arguments);
+    rt.to(args);
+};
+//<!-- gaw -->
+__rt_ls("https://www.googleadservices.com/pagead/conversion_async.js");
+
+//<!-- fbt -->
+!function (b, e, f, g, a, c, d) {
+    b.fbq || (a = b.fbq = function () {
+        a.callMethod ? a.callMethod.apply(a, arguments) : a.queue.push(arguments)
+    }, b._fbq || (b._fbq = a), a.push = a, a.loaded = !0, a.version = "2.0", a.queue = [], c = e.createElement(f), c.async = !0, c.src = g, d = e.getElementsByTagName(f)[0], d.parentNode.insertBefore(c, d))
+}(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+fbq("init", "1643507185960355");
+fbq("track", "PageView");
+
+//<!-- rtb -->
+__rt_li("//us.creativecdn.com/tags?id=pr_82oRsCphrKnwBa3jA8eU&amp;ncm=1");
+
+
+window['rtGroupEvents'] = true;
+
+window['rtlog'] = true;
+
+window['rtfb'] = true;
+window['rtfbf'] = fbq;
+
+window['rtan'] = true;
+window['rtanf'] = function(){
+        try{
+            if(window['GoogleAnalyticsObject'] !== 'ga') throw "Google Analytics not initialized. ga is undefined";
+            var args = [].slice.call(arguments);
+            var name = window['ga'].getAll()[0].get('name');
+            args[0] = name + "." + args[0];
+            window['ga'].apply(null, args);
+        }catch(e){
+            console.log("rtanf error", e, arguments);
+        }
+    };
+
+window['rtec'] = false;
+window['rtecf'] = window['ga'] || function(){};
+
+window['rtaw'] = true;
+//window['rtawf'] = console.log;
+window['rtawf'] = function (cp) {
+    var o = setInterval(function () {
+        if (typeof window.google_trackConversion === 'undefined') return;
+        clearInterval(o);
+        var out = {
+            google_conversion_id: 940212318,
+            google_conversion_label: "9rSTCMn34HIQ3oCqwAM",
+            google_custom_params: cp,
+            google_remarketing_only: true
+        };
+
+        var out2 = {
+            google_conversion_id: 940212318,
+            google_conversion_label: "0iUPCMHb7IgBEN6AqsAD",
+            google_custom_params: cp,
+            google_remarketing_only: true
+        };
+
+        var out3 = {
+            google_conversion_id: 630345927,
+            google_conversion_label: "ZYgYCIqFhNMBEMehyawC",
+            google_custom_params: cp,
+            google_remarketing_only: true
+        };
+        console.log("w.rtawf detail 1",out);
+        console.log("w.rtawf detail 2",out2);
+        console.log("w.rtawf detail 3",out3);
+        window.dataLayer = window.dataLayer || [];
+        var new_cp = Object.assign({}, cp);
+        new_cp['event'] = 'send_dynx_ecomm';
+        window.dataLayer.push(new_cp);
+
+        window.google_trackConversion(out);
+        window.google_trackConversion(out2);
+        window.google_trackConversion(out3);
+    }, 200);
+}
+//if (location.pathname === "/") rtawf({dynx_pagetype: 'home', ecomm_pagetype: 'home'});
+
+window["_rtb"] = function () {
+    var args = [].slice.call(arguments);
+    var rtb = document.createElement("iframe");
+    rtb.setAttribute('width', '1');
+    rtb.setAttribute('height', '1');
+    rtb.setAttribute('scrolling', 'no');
+    rtb.setAttribute('frameBorder', '0');
+    rtb.setAttribute('style', 'display: none;');
+    rtb.setAttribute('src', '//us.creativecdn.com/tags?id=pr_82oRsCphrKnwBa3jA8eU_' + args.join('_'));
+    document.body.appendChild(rtb);
+    console.log("rtb event", args.join('_'));
+}
+var _rtb = window["_rtb"];
+if (location.pathname === "/") _rtb('home');
+
+// redirect
+window['rtredir'] = false;
+window['rtredirurl'] = window.location.href; // or function(){return window.location.href;};
+
+if (!window.rt) window.rt = [];
+var rt = window.rt;
+
+rt.push(function () {
+
+    // Reemplazo evento en GTM en CartPurchaseSQP
+    rt.RetargetingFuncs.push(function (r) {
+        if (typeof r.length === "undefined") r = [r];
+
+        r.forEach(function (msg) {
+            if (!msg.hasOwnProperty("body") || !msg.hasOwnProperty("action")) return;
+            if (msg.action === "Error") return;
+
+            msg = msg.body;
+
+            switch (msg[0]) {
+                case 'CartPurchaseSQP':
+                    rt.lstore("transactionId", msg[1]);
+                    rt.lstore("transactionTotal", msg[2]);
+                    window.dataLayer = window.dataLayer || [];
+                    window.dataLayer.push({
+                        'event': 'RtPurchase',
+                    });
+                    break;
+                default:
+                    break;
+            }
+        });
+    });
+
+    rt.RetargetingFuncs.push(function (r) {
+        if (typeof r.length === "undefined") r = [r];
+
+        r.forEach(function (msg) {
+            if (!msg.hasOwnProperty("body")) return;
+
+            msg = msg.body;
+
+            switch (msg[0]) {
+                case 'CartPurchaseSQP':
+                    window.dataLayer = window.dataLayer || [];
+                    var custom_data = {
+                        'event': 'RT Purchase DataLayer',
+                        'rt_order_id': msg[1],
+                        'rt_order_total': msg[2],
+                        'rt_order_products': rt.SQP2SKU(msg.slice(3)),
+                        'rt_order_products_raw': msg.slice(3),
+                        'rt_order_currency': rt.currency || 'CLP'
+                    };
+                    window.dataLayer.push(custom_data);
+                    console.log("dataLayer send", custom_data);
+                    break;
+                default:
+                    break;
+            }
+
+        });
+    });
+
+    rt.RetargetingFuncs.push(function (r) {
+        if (typeof r.length === "undefined") r = [r];
+
+        var productViewSum = [];
+        r.forEach(function (msg) {
+            if (!msg.hasOwnProperty("body") || !msg.hasOwnProperty("action")) return;
+            if (msg.action === "Error") return;
+
+            msg = msg.body;
+
+            switch (msg[0]) {
+                case 'CategoryView':
+                    _rtb('category2', msg[1]);
+                    break;
+                case 'ProductView':
+                    if (msg[4] === "true") _rtb('offer', msg[1]);
+                    if (msg[4] === "false" && document.location.pathname.indexOf("busqueda") !== -1) productViewSum.push(msg[1]);
+                    break;
+                case 'ProductAdd':
+                    _rtb('basketadd', msg[1]);
+                    break;
+                case 'CartCheckoutSQP':
+                    if (msg[1] == "2" || msg[1] == "3") _rtb('startorder');
+                    if (msg[1] == "1" || msg[1] == "4") _rtb('basketstatus', rt.SQP2SKU(msg.slice(3)).join(','));
+                    break;
+                case 'CartPurchaseSQP':
+                    _rtb('orderstatus2', msg[2], msg[1], rt.SQP2SKU(msg.slice(3)).join(','));
+                    break;
+                default:
+                    break;
+            }
+
+        });
+
+        if (productViewSum.length > 0) _rtb('listing', productViewSum.join(","));
+    });
+});

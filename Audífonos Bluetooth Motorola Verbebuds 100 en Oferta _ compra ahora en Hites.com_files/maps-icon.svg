@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="21.896" height="40" viewBox="0 0 21.896 40">
+    <defs>
+        <style>
+            .cls-1{fill:#fff}
+        </style>
+    </defs>
+    <g id="maps-icon">
+        <path id="Trazado_31" d="M10.939 0A10.948 10.948 0 0 0 0 10.948a10.767 10.767 0 0 0 1.659 5.786l8.657 13.888a.718.718 0 0 0 .989.232.735.735 0 0 0 .232-.228l8.7-13.892a10.845 10.845 0 0 0 1.663-5.786A10.956 10.956 0 0 0 10.939 0zm0 16.677a5.738 5.738 0 0 1 0-11.459 5.738 5.738 0 1 1 .314 11.472h-.314z" class="cls-1" data-name="Trazado 31"/>
+        <path id="Trazado_32" d="M18.24 81.695a3.108 3.108 0 1 1 .9 2.2 3.108 3.108 0 0 1-.9-2.2" class="cls-1" data-name="Trazado 32" transform="translate(-10.4 -44.815)"/>
+    </g>
+</svg>

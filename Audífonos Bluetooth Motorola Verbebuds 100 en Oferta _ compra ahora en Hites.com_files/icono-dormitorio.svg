@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+    <defs>
+        <style>
+            .prefix__cls-1{fill:#9a9a9a}
+        </style>
+    </defs>
+    <g id="prefix__icono-dormitorio" transform="translate(-11.33 -12.11)">
+        <path id="prefix__Trazado_154" d="M26.942 17.03a1.372 1.372 0 0 1-1.372-1.372v-2.176a1.372 1.372 0 0 1 1.372-1.372h4.746a1.372 1.372 0 0 1 1.364 1.372v2.177a1.372 1.372 0 0 1-1.364 1.372zm0-3.882a.356.356 0 0 0-.334.334v2.177a.356.356 0 0 0 .356.356h4.724a.356.356 0 0 0 .356-.356v-2.177a.356.356 0 0 0-.356-.356z" class="prefix__cls-1" data-name="Trazado 154" transform="translate(-3.906)"/>
+        <path id="prefix__Trazado_155" d="M15.662 17.03a1.372 1.372 0 0 1-1.372-1.372v-2.176a1.372 1.372 0 0 1 1.372-1.372H20.4a1.372 1.372 0 0 1 1.372 1.372v2.177A1.372 1.372 0 0 1 20.4 17.03zm0-3.882a.356.356 0 0 0-.356.356v2.176a.356.356 0 0 0 .356.356H20.4a.356.356 0 0 0 .356-.377v-2.177a.356.356 0 0 0-.356-.356z" class="prefix__cls-1" data-name="Trazado 155" transform="translate(-.812)"/>
+        <path id="prefix__Rectángulo_229" d="M0 0H2.01V1.016H0z" class="prefix__cls-1" data-name="Rectángulo 229" transform="translate(20.307 13.431)"/>
+        <path id="prefix__Trazado_156" d="M11.33 21.622v-6.328a1.364 1.364 0 0 1 1.364-1.364h1.451v1.016h-1.451a.341.341 0 0 0-.348.348v6.328z" class="prefix__cls-1" data-name="Trazado 156" transform="translate(0 -.499)"/>
+        <path id="prefix__Trazado_157" d="M36.778 18.618v-3.324a.348.348 0 0 0-.356-.348H35V13.93h1.451a1.372 1.372 0 0 1 1.372 1.364v3.324z" class="prefix__cls-1" data-name="Trazado 157" transform="translate(-6.493 -.499)"/>
+        <path id="prefix__Trazado_158" d="M15.784 27.336a2.228 2.228 0 0 1-1.742-.849l-2.692-3.338.8-.639 2.685 3.353a1.212 1.212 0 0 0 .951.457 1.241 1.241 0 0 0 .514-.12l14.426-6.36.406.929-14.412 6.357a2.177 2.177 0 0 1-.936.21z" class="prefix__cls-1" data-name="Trazado 158" transform="translate(-.005 -2.12)"/>
+        <path id="prefix__Trazado_159" d="M12.694 34.041a1.372 1.372 0 0 1-1.364-1.371V22.321L31.3 19.15v13.52a1.372 1.372 0 0 1-1.343 1.372zm-.348-1.372a.348.348 0 0 0 .348.356h17.264a.356.356 0 0 0 .356-.356V20.333l-17.968 2.852z" class="prefix__cls-1" data-name="Trazado 159" transform="translate(0 -1.931)"/>
+    </g>
+</svg>

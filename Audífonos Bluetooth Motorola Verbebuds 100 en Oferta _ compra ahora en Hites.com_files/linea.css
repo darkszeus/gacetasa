@@ -1,0 +1,70 @@
+/* * {font-family: 'Segoe UI'; font-size: 10pt;}*/
+*, :after, :before {
+	box-sizing: border-box;
+}
+.chat_hites_circle_activo,.chat_hites_circle_inactivo  {
+	position        : relative;
+	/*border          : 2px solid #3c44cc;*/
+	border     : 2px solid gray;
+	border-radius   : 100%;
+	width           : 12px;
+	height			: 12px;
+	text-align      : center;
+	margin-top      : 30px;
+	margin-left      : 10px;
+	z-index         : 2;
+    font-family: Lato, sans-serif;
+    font-size: 12px;
+	/*background-color: #3c44cc; */
+	background-color: gray; 
+	display: block;
+}
+.chat_hites_circle_activo {
+	border          : 2px solid #3c44cc;
+	background-color: #3c44cc; 	
+}
+.chat_hites_circle_inactivo {
+	border     : 2px solid gray;
+	background-color: gray; 	
+}
+
+.chat_hites_estados_container {
+	margin-top: -20px;
+    margin-bottom: 10px;
+}
+.chat_hites_right {
+	display: flex;
+	padding-left: 15px;
+	margin-top: -15px;
+}
+.chat_hites_img_estado {
+	margin-top: -7px;
+	width: 20px;
+	height: 20px;
+}
+.chat_hites_div_estado {
+	margin-top: -8px;
+	margin-left: 0px;
+	min-width: 20px;
+	height: 20px;	
+	border: 0px;
+	border-style: solid;
+}
+.chat_hites_estado {
+	white-space:nowrap;
+	margin-left: 5px;
+	text-align: left;
+	margin-top: -8px;
+}
+.vertLineActiva {
+	border-left: 3px solid #3c44cc;
+	height: 37px;
+	margin-left: 2.4px;
+	margin-top: -6px;
+}
+.vertLineInactiva {
+	border-left: 3px solid gray;
+	height: 37px;
+	margin-left: 2.4px;
+	margin-top: -6px;
+}

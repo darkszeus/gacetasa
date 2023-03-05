@@ -1,0 +1,5 @@
+(function(d,r,s,t){r.rtID = '++++MNPc94h++P3HcCjuj+___3';r.rtS = '++++MOk9oCq++1dsQj05NO___3';r.currency = 'CLP';r.domain = 'https://pixel.retargeting.cl';
+__rt_le = function(tag, url) {var x = d.createElement(tag); x.src = url; d.head.appendChild(x);};
+__rt_ls = function(url) {return __rt_le('script', url);};__rt_li = function(url) {return __rt_le('iframe', url);};
+t=r.domain + '/pixel/versioned'; if (+'00000047'>=0){t+='/www_hites_com/cli/00000025.00000047.rttrc.js'}
+else {t+='/cli/00000025.rttrc.js';};__rt_ls(t);})(document,rt);
